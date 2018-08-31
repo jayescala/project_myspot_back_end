@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html ng-app="accounts" ng-csp ng-strict-di>
+  <head>
+    <meta charset="utf-8">
+    <title ng-bind="(title && (title | localize) + ' - ') + 'Spotify'">Spotify</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <base href="/">
+    <link rel="icon" href="https://accounts.scdn.co/images/favicon.ace4d8543bbb017893402a1e9d1ac1fa.ico">
+    <link href="https://accounts.scdn.co/css/index.d61726f30f8c084b7b89.css" media="screen" rel="stylesheet">
+
+    <script async defer
+            src="https://www.google.com/recaptcha/api.js?render=explicit"
+            nonce="MJHJm5SAcFMFOnYbgLeJIw=="></script>
+    <script defer src="https://accounts.scdn.co/js/index.d61726f30f8c084b7b89.js" sp-bootstrap></script>
+    <meta ng-non-bindable sp-bootstrap-data='{"client":{"name":"myspot"},"country":"US","locales":["*"],"captchaSiteKey":null,"useCaptcha":false,"BON":["0","0",-727676572]}'>
+  </head>
+  <body ng-view></body>
+</html>

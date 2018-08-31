@@ -5,9 +5,8 @@ const methodOverride = require("method-override");
 const session = require("express-session");
 const cors = require("cors");
 const socket = require("socket.io");
-// const request = require("request");
-// const request = require("superagent");
-// const querystring = require("querystring");
+const request = require("request");
+const qs = require("qs");
 
 // Application
 const app = express();
@@ -18,7 +17,7 @@ const localHost = "http://localhost:3000";
 const activeHost = localHost;
 
 // Port Setup
-    // Server Port
+  // Server Port
 const PORT = process.env.PORT || 9000;
 
 const server = app.listen(PORT, () => {
@@ -32,14 +31,14 @@ require("./db/db.js");
 // Models
 
 // Middleware
-    // body-parser
+  // body-parser
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
-    // method-override
+  // method-override
 app.use(methodOverride("_method"));
-    // express-session
+  // express-session
 app.use(session({secret: "max", resave: false, saveUninitialized: false}));
-    // cors
+  // cors
 const corsOptions = {
   origin: activeHost,
   credentials: true,
@@ -48,19 +47,19 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Controllers
-    // user
+  // user
 const userController = require("./controllers/userController.js");
 app.use("/user", userController);
-    // room
+  // room
 const roomController = require("./controllers/roomController.js");
 app.use("/rooms", roomController);
 
 // Static Routes
-    // images
+  // images
 app.use("/images", express.static("images"));
 
 // APIs
-    // socket.io Setup
+  // socket.io Setup
 const io = socket(server);
 
 io.on("connection", function(socket){
@@ -79,75 +78,128 @@ io.on("connection", function(socket){
   });
 });
 
-    // Spotify API
 
+// app.use(function (req, res, next) {
+//     res.setHeader('Access-Control-Allow-Origin', '*');
+//     res.header('Access-Control-Allow-Credentials', true);
+//     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Content-length, Accept, x-access-token');
+//     res.header('Access-Control-Allow-Methods', '*');
+//     next();
+// });
+
+  // Spotify API
 const clientID = "ca8ab994a87a4687b57c44bc51c7bd7c";
 const clientSecret = "a0bcd59da55547a5bcfab2695ef3d2f5";
-const scopes = "user-read-private user-read-email playlist-modify-public";
-const redirectURI = "http://localhost:3000/home";
 
-app.use(function (req, res, next) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Credentials', true);
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Content-length, Accept, x-access-token');
-    res.header('Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE, OPTIONS');
-    next();
-});
+app.get("/authorize", (req, res) => {
+  const query = qs.stringify({
+                  client_id: clientID,
+                  response_type: "code",
+                  redirect_uri: "http://localhost:9000/callback",
+                  scope: "playlist-modify-public"
+                });
 
-app.get('/auth',(req,res) => {
-    res.redirect('https://accounts.spotify.com/authorize?' +
-        querystring.stringify({
-            response_type: 'code',
-            client_id: process.env.clientID,
-            redirect_uri: `${process.env.redirectURI}/redirect`
-        }));
-});
-
-app.get('/redirect',(req,res) => {
-    const code = req.url.match(/code=([\w\d-_.]+)/)[1];
-    const base64Token = `${process.env.clientID}:${process.env.clientSecret}`
-    request({
-        url: 'https://accounts.spotify.com/api/token',
-        method: 'POST',
-        form: {
-            grant_type: 'authorization_code',
-            code: code,
-            redirect_uri: `${process.env.redirectURI}/redirect`
-        },
-        json: true,
-        headers: {
-            'Authorization': `Basic ${new Buffer(base64Token).toString('base64')}`
-        }
-    },(err,response,body) => {
-        res.redirect(`${process.env.APP_URL}?${querystring.stringify(body)}`);
-    });
-});
-
-const authOptions = {
-    url: "https://accounts.spotify.com/api/token",
+  const authorizeOptions = {
+    url: "https://accounts.spotify.com/authorize?" + query,
     headers: {
-      "Authorization": "Basic " + (new Buffer(clientID + ":" + clientSecret).toString("base64"))
+      "Authorization": "Basic " + clientID + ":" + clientSecret
     },
     form: {
       grant_type: "client_credentials"
+    }
+  }
+
+  res.redirect("https://accounts.spotify.com/authorize?" + query);
+  // request.get(authorizeOptions, function(error, response, body) {
+  //   // console.log(error, "error");
+  //   // console.log(response, "response");
+  //   res.send(body);
+  //   console.log(body, "body");
+  // });
+});
+
+// app.get('/auth',(req,res) => {
+//     res.redirect('https://accounts.spotify.com/authorize?' +
+//         querystring.stringify({
+//             response_type: 'code',
+//             client_id: process.env.clientID,
+//             redirect_uri: `${process.env.redirectURI}/redirect`
+//         }));
+// });
+
+app.get("/callback", (req, res) => {
+  console.log("CALLBACK HIT");
+
+  const code = req.query.code || null;
+
+  const tokenOptions = {
+    url: "https://accounts.spotify.com/api/token",
+    headers: {
+      'Authorization': 'Basic ' + (new Buffer(clientID + ':' + clientSecret).toString('base64'))
+    },
+    form: {
+      code: code,
+      redirect_uri: "http://localhost:9000/callback",
+      grant_type: "authorization_code"
     },
     json: true
   };
-  
-  const generateSearchType = (searchType) => {
-    let searchTypeString = "";
-  
-    for(let i = 0; i <= searchType.length-1; i++) {
-      if(i !== searchType.length-1) {
-        searchTypeString += searchType[i] + "%2C";
-      } else {
-        searchTypeString += searchType[i];
-      }
-    }
-    return searchTypeString;
-  }
 
-    // Search
+  request.post(tokenOptions, function(error, response, body) {
+    const accessToken = body.access_token;
+    const refreshToken = body.refresh_token;
+    console.log(body);
+    // console.log(accessToken);
+
+    var tokenOptions = {
+      url: "https://api.spotify.com/v1/me",
+      headers: { "Authorization": "Bearer " + accessToken },
+      json: true
+    };
+
+    request.get(tokenOptions, function(error, response, body) {
+      // console.log(body);
+    });
+
+    const query = qs.stringify({
+      accessToken: accessToken,
+      refreshToken: refreshToken
+    });
+    // console.log("HIT");
+    // console.log(res);
+    // console.log(body);
+
+    // res.send(body);
+    // res.redirect("back");
+    res.redirect("http://localhost:3000/home/" + accessToken + "/" + refreshToken);
+  });
+});
+
+const authOptions = {
+  url: "https://accounts.spotify.com/api/token",
+  headers: {
+    "Authorization": "Basic " + (new Buffer(clientID + ":" + clientSecret).toString("base64"))
+  },
+  form: {
+    grant_type: "client_credentials"
+  },
+  json: true
+};
+
+const generateSearchType = (searchType) => {
+  let searchTypeString = "";
+
+  for(let i = 0; i <= searchType.length-1; i++) {
+    if(i !== searchType.length-1) {
+      searchTypeString += searchType[i] + "%2C";
+    } else {
+      searchTypeString += searchType[i];
+    }
+  }
+  return searchTypeString;
+}
+
+// Search
 app.get("/search/:query", (req, res) => {
   request.post(authOptions, function(error, response, body) {
     if(!error && response.statusCode === 200) {
@@ -171,7 +223,7 @@ app.get("/search/:query", (req, res) => {
   });
 });
 
-    // Tracks
+// Tracks
 app.get("/tracks/:id", (req, res) => {
   request.post(authOptions, function(error, response, body) {
     if(!error && response.statusCode === 200) {
@@ -188,3 +240,22 @@ app.get("/tracks/:id", (req, res) => {
       });
     }
   });
+});
+
+app.get("/playlist/add/track/:id/:accessToken/:track", (req, res) => {
+      const accessToken = req.params.accessToken;
+      console.log(accessToken, "accessToken");
+      const options = {
+        url: "https://api.spotify.com/v1/playlists/" + req.params.id + "/tracks" ,
+        headers: {
+          "Authorization": "Bearer " + req.params.accessToken,
+          "Content-Type": "application/json"
+        },
+        body: {
+          "uris": ["spotify:track:" + "0E9ZjEAyAwOXZ7wJC0PD33"]
+        }
+      };
+      request.post(options, function(error, response, body) {
+        res.send(body);
+      });
+    });

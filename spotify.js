@@ -4,7 +4,7 @@
     const clientSecret = "a0bcd59da55547a5bcfab2695ef3d2f5";
     const scopes = "user-read-private user-read-email playlist-modify-public";
     const redirectURI = "http://localhost:3000/home";
-    
+
     const authOptions = {
       url: "https://accounts.spotify.com/api/token",
       headers: {
@@ -15,10 +15,10 @@
       },
       json: true
     };
-    
+
     const generateSearchType = (searchType) => {
       let searchTypeString = "";
-    
+
       for(let i = 0; i <= searchType.length-1; i++) {
         if(i !== searchType.length-1) {
           searchTypeString += searchType[i] + "%2C";
@@ -28,7 +28,7 @@
       }
       return searchTypeString;
     }
-    
+
     app.use(function (req, res, next) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.header('Access-Control-Allow-Credentials', true);
@@ -36,7 +36,7 @@
         res.header('Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE, OPTIONS');
         next();
     });
-    
+
     app.get('/auth',(req,res) => {
         res.redirect('https://accounts.spotify.com/authorize?' +
             querystring.stringify({
@@ -45,7 +45,7 @@
                 redirect_uri: `${process.env.redirectURI}/redirect`
             }));
     });
-    
+
     app.get('/redirect',(req,res) => {
         const code = req.url.match(/code=([\w\d-_.]+)/)[1];
         const base64Token = `${process.env.clientID}:${process.env.clientSecret}`
@@ -65,10 +65,10 @@
             res.redirect(`${process.env.APP_URL}?${querystring.stringify(body)}`);
         });
     });
-    
+
     app.get('/refresh',(req,res) => {
         const base64Token = `${process.env.clientID}:${process.env.clientSecret}`
-    
+
         request({
             url: 'https://accounts.spotify.com/api/token',
             method: 'post',
@@ -83,7 +83,7 @@
             res.send(body);
         });
     });
-    
+
         // Search
     app.get("/search/:query", (req, res) => {
       request.post(authOptions, function(error, response, body) {
@@ -107,7 +107,7 @@
         }
       });
     });
-    
+
         // Tracks
     app.get("/tracks/:id", (req, res) => {
       request.post(authOptions, function(error, response, body) {
